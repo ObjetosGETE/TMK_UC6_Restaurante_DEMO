@@ -1,150 +1,128 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | TMK_UC6_Restaurante</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <div id="unity-fullscreen-container">
-        <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
-        <div id="unity-loading-container">
-          <div id="unity-loading-bar">
-            <div id="unity-logo"></div>
-            <div id="unity-progress-bar-empty">
-              <div id="unity-progress-bar-full"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-logo-title-footer"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">TMK_UC6_Restaurante</div>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SenacRS</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body id="body">
+
+  <!-- Armadilha de Foco para detectar leitor de tela -->
+  <div id="screen-reader-trap" tabindex="0" class="visually-hidden" aria-label="Conteúdo interativo carregado. Use os gestos de navegação para explorar."></div>
+
+  <!-- Som de clique -->
+  <audio id="click-sound" src="sounds/click-sound.mp3" preload="auto"></audio>
+
+  <!-- Aviso de rotação de dispositivo -->
+  <div id="rotation-warning">
+    <img src="image/rotate-device.gif" alt="Rotate Device">
+    <p>Por favor, gire seu dispositivo</p><br>
+    <p id="highlight-message">Não esqueça de ativar a rotação de tela</p>
+  </div>
+
+  <!-- Container oculto para textos da Unity enviados ao VLibras -->
+  <div id="vlibras-ui-texts" class="visually-hidden"></div>
+
+  <!-- Container principal da Unity WebGL -->
+  <div id="unityContainer">
+    <!-- NOVA CAMADA DE ACESSIBILIDADE -->
+    <div id="accessibility-overlay" aria-live="polite"></div>
+    
+    <div class="controls-container">
+      <button
+        id="fullscreen-btn"
+        class="control-btn fullscreen-btn"
+        onclick="toggleFullscreen()"
+        aria-label="Entrar em tela cheia"
+        aria-pressed="false">
+      </button>
+      <button
+        id="sound-btn"
+        class="control-btn sound-btn"
+        onclick="toggleSound()"
+        aria-label="Mutar som"
+        aria-pressed="true">
+      </button>
+      <button
+        id="menu"
+        class="control-btn menu-btn"
+        aria-controls="menu-panel"
+        aria-expanded="false"
+        aria-label="Abrir painel de configurações">
+      </button>
+
+      <div
+        id="menu-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        aria-label="Painel de configurações">
+        <button id="acromatopsia" onclick="applyFilter('grayscale')">Acromatopsia</button>
+        <button id="protanomalia" onclick="applyFilter('protanopia')">Protanomalia</button>
+        <button id="deuteranomalia" onclick="applyFilter('deuteranopia')">Deuteranomalia</button>
+        <button id="tritanomalia" onclick="applyFilter('tritanopia')">Tritanomalia</button>
+        <button id="normal" onclick="applyFilter('normal')">Sem Daltonismo</button>
       </div>
     </div>
-    <script>
-      let canvas = document.querySelector("#unity-canvas");
-      let fullscreenContainer = document.querySelector("#unity-fullscreen-container");
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        var warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
-      }
+    <canvas id="unityCanvas"></canvas>
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Build.loader.js";
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/Build.data.br",
-        frameworkUrl: buildUrl + "/Build.framework.js.br",
-        codeUrl: buildUrl + "/Build.wasm.br",
-        streamingAssetsUrl: "StreamingAssets",
+    <div class="loadingContainer" id="loadingBar">
+      <div class="progress-bar">
+        <div class="filler" id="progressFiller"></div>
+      </div>
+    </div>
+  </div>
 
-        // If you have a custom web site structure, or want to place multiple Unity build instances on the same page,
-        // you can pass fullscreenElementID: "my-unity-fullscreen-container-id", in this configuration field to
-        // explicitly point to the element tree root that is displayed in fullscreen mode.
-        fullscreenElementID: "unity-fullscreen-container",
+  <!-- Definições SVG dos filtros de daltonismo -->
+  <svg width="0" height="0" aria-hidden="true">
+    <defs>
+      <filter id="deuteranopia">
+        <feColorMatrix type="matrix" values="
+          0.625, 0.375, 0, 0, 0,
+          0.7,   0.3,   0, 0, 0,
+          0,     0.3,   0.7, 0, 0,
+          0,     0,     0,   1, 0
+        "/>
+      </filter>
+      <filter id="protanopia">
+        <feColorMatrix type="matrix" values="
+          0.567, 0.433, 0, 0, 0,
+          0.558, 0.442, 0, 0, 0,
+          0,     0.242, 0.758, 0, 0,
+          0,     0,     0,     1, 0
+        "/>
+      </filter>
+      <filter id="tritanopia">
+        <feColorMatrix type="matrix" values="
+          0.95,  0.05,   0,    0, 0,
+          0,     0.433,  0.567,0, 0,
+          0,     0.475,  0.525,0, 0,
+          0,     0,      0,    1, 0
+        "/>
+      </filter>
+    </defs>
+  </svg>
 
-        companyName: "DefaultCompany",
-        productName: "TMK_UC6_Restaurante",
-        productVersion: "1.0",
-        showBanner: unityShowBanner,
-        // errorHandler: function(err, url, line) {
-        //    alert("error " + err + " occurred at line " + line);
-        //    // Return 'true' if you handled this error and don't want Unity
-        //    // to process it further, 'false' otherwise.
-        //    return true;
-        // },
-      };
+  <!-- Placeholder para injeção condicional do widget VLibras -->
+  <div id="vlibras-container"></div>
 
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
+  <!-- Configuração injetada pelo pré-processador WebGL da Unity -->
+  <script>
+    window.UNITY_WEBGL_CONFIG = {
+      loaderUrl: "Build/Build.loader.js",
+      dataUrl: "Build/Build.data.gz",
+      frameworkUrl: "Build/Build.framework.js.gz",
+      codeUrl: "Build/Build.wasm.gz",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "SenacRS",
+      productName: "TMK_UC6_Restaurante",
+      productVersion: "1.0"
+    };
+  </script>
 
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
-
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
-
-      } else {
-        // Desktop style: Render the game canvas container in a window that can be maximized to fullscreen:
-        fullscreenContainer.style.width = "960px";
-        fullscreenContainer.style.height = "600px";
-      }
-
-
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        const loadingContainer = document.querySelector("#unity-loading-container");
-        const progressBarFull = document.querySelector("#unity-progress-bar-full");
-
-        createUnityInstance(canvas, config, (progress) => {
-          if (progress < 1) {
-            loadingContainer.style.display = "block";
-            progressBarFull.style.width = 100 * progress + "%";
-          } else {
-            loadingContainer.style.display = "none";
-          }
-        }).then((unityInstance) => {
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-
-              }).catch((message) => {
-                alert(message);
-              });
-            };
-
-      document.body.appendChild(script);
-
-    </script>
-  </body>
+  <!-- Script principal -->
+  <script src="scripts.js"></script>
+</body>
 </html>
